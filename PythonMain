@@ -1,0 +1,156 @@
+import subprocess
+import sys
+
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# install("numpy")
+# install("pyscreenshot")
+# install("schedule")
+# install("datetime")
+# install("pytesseract")
+# install("pillow")
+# install("asyncio-atexit")
+# install("pyserial")
+
+import time
+import os
+import numpy as np
+import pyscreenshot as ImageGrab
+import schedule
+from datetime import datetime
+from pytesseract import pytesseract
+from PIL import Image
+import atexit
+
+import serial
+import time
+import pyfirmata
+board = pyfirmata.Arduino('COM4')
+
+
+
+# Dictionary to store file paths and their creation times
+file_paths = {}
+filepathfinal = ""
+
+lasthealth = 0
+shock = False
+
+#
+# def take_screenshot():
+#     global filepathfinal
+#    # print("taking screenshot")
+#     # Generating acceptable timestamp
+#     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.%f")
+#     image_name = f"screenshot-{timestamp}"
+#     #screenshot of health
+#     screenshot = ImageGrab.grab(bbox=(600,1288,770,1360))
+#
+#     # Where to save screenshot
+#     filepath = f"./screenshots/{image_name}.png"
+#     filepathfinal = filepath
+#     print(filepathfinal)
+#
+#     # Saving screenshot to selected file path
+#     screenshot.save(filepath)
+#     print(f"screenshot taken and saved at {filepath}")
+#
+#     # Add the file path and timestamp to the dictionary
+#     file_paths[filepath] = datetime.now()
+# #
+# # def delete_screenshot():
+# #     current_time = datetime.now()
+# #     # Create a list of files to delete
+# #     files_to_delete = [path for path, timestamp in file_paths.items() if (current_time - timestamp).seconds >= 3]
+# #
+# #     for file_path in files_to_delete:
+# #         if os.path.exists(file_path):
+# #             try:
+# #                 # Delete the file
+# #                 os.remove(file_path)
+# #                 print(f"File {file_path} has been deleted successfully.")
+# #                 # Remove the file path from the dictionary
+# #                 del file_paths[file_path]
+# #             except Exception as e:
+# #                 print(f"An error occurred while trying to delete the file: {e}")
+# #         else:
+# #             print(f"The file {file_path} does not exist.")
+# #             # Remove the file path from the dictionary
+# #             del file_paths[file_path]
+# #
+# # #for when rounds restart
+# # def delete_all_screenshots():
+# #     # Path to the screenshots directory
+# #     screenshots_dir = "./screenshots"
+# #
+# #     # Check if the directory exists
+# #     if os.path.exists(screenshots_dir):
+# #         # List all files in the directory
+# #         files = os.listdir(screenshots_dir)
+# #
+# #         # Iterate over all the files and delete them
+# #         for file_name in files:
+# #             file_path = os.path.join(screenshots_dir, file_name)
+# #             try:
+# #                 os.remove(file_path)
+# #                 print(f"File {file_path} has been deleted successfully.")
+# #             except Exception as e:
+# #                 print(f"An error occurred while trying to delete the file {file_path}: {e}")
+# #     else:
+# #         print(f"The directory {screenshots_dir} does not exist.")
+
+#extracts health bar number
+def image_reader():
+    global shock
+    global lasthealth
+    path_to_tesseract = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    pytesseract.tesseract_cmd = path_to_tesseract
+
+    img = ImageGrab.grab(bbox=(600,1288,770,1360))
+    data = np.array(img.convert('L'))
+    converted = np.where(data > 150, 150, 0)
+    img = Image.fromarray(converted.astype('uint8'))
+    text = pytesseract.image_to_string(img)
+    print(text)
+    try:
+        textint = int(text)
+    except:
+        textint = lasthealth
+    #print("Text:" + str(textint))
+    if lasthealth > textint:
+        shock = True
+        lasthealth = textint
+    elif lasthealth < textint:
+        lasthealth = textint
+    else:
+        pass
+    if shock:
+        #print("Shock")
+        for i in range(10):
+            board.digital[7].write(1)
+            time.sleep(0.025)
+            board.digital[7].write(0)
+            time.sleep(0.025)
+    else:
+        print("AAAHHH")
+    shock = False
+#deletes screenshots when program stops
+# @atexit.register
+# def on_close():
+#     delete_all_screenshots()
+
+
+def main():
+    #schedule.every(0.05).seconds.do(take_screenshot)
+
+
+
+    # schedule.every(0.05).seconds.do(delete_screenshot)
+
+    while True:
+        image_reader()
+
+if __name__ == '__main__':
+    main()
+
